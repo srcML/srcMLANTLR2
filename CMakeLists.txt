@@ -29,21 +29,39 @@ set(ANTLR2_ARCHIVE ${ANTLR2_DIRNAME}.tar.gz)
 set(ANTLR2_URL https://www.antlr2.org/download/${ANTLR2_ARCHIVE})
 file(DOWNLOAD ${ANTLR2_URL} ${ANTLR2_ARCHIVE})
 
-# Extract the cpp include files and cpp files
+# Setup Universal architecture for Big Sur default
+string(SUBSTRING ${CMAKE_SYSTEM_VERSION} 0 2 OS_VERSION)
+if (OS_VERSION GREATER_EQUAL "20")
+    if(NOT CMAKE_OSX_ARCHITECTURES)
+        set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
+    endif()
+    message(STATUS "OSX Architectures: ${CMAKE_OSX_ARCHITECTURES}")
+endif()
+
+# Extract the include and cpp files
 file(ARCHIVE_EXTRACT INPUT ${ANTLR2_ARCHIVE}
     PATTERNS ${ANTLR2_DIRNAME}/lib/cpp/src/*.cpp ${ANTLR2_DIRNAME}/lib/cpp/antlr/*.hpp
-    )
-file(REMOVE ./${ANTLR2_DIRNAME}/lib/cpp/src/dll.cpp)
+)
+set(ANTLR2_CPP_DIR ${CMAKE_CURRENT_BINARY_DIR}/${ANTLR2_DIRNAME}/lib/cpp)
+file(REMOVE ${ANTLR2_CPP_DIR}/src/dll.cpp)
+
+# Include files in the source
+include_directories(${ANTLR2_CPP_DIR}/)
+
+# Install include files
+install(DIRECTORY ${ANTLR2_CPP_DIR}/antlr DESTINATION /usr/local/include)
 
 # Source files
-file(GLOB LIBSRC ./${ANTLR2_DIRNAME}/lib/cpp/src/*.cpp)
+file(GLOB LIBSRC ${ANTLR2_CPP_DIR}/src/*.cpp)
 
 # ANTLR2 static library
 add_library(antlr ${LIBSRC})
-install(FILES ./libantlr.a DESTINATION /usr/local/lib)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libantlr.a DESTINATION /usr/local/lib)
 
-# Include files in the source
-include_directories(./${ANTLR2_DIRNAME}/lib/cpp/)
-
-# Install include files
-install(DIRECTORY ./${ANTLR2_DIRNAME}/lib/cpp/antlr DESTINATION /usr/local/include)
+# Display macOS Big Sur architectures of libantlr
+if (OS_VERSION GREATER_EQUAL "20")
+    add_custom_command(TARGET antlr POST_BUILD
+                       COMMAND ${CMAKE_COMMAND} -E echo_append "-- OSX Architectures libantlr.a: "
+                       COMMAND lipo -archs ${CMAKE_CURRENT_BINARY_DIR}/libantlr.a
+    )
+endif()
