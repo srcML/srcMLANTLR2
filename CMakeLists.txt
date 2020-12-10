@@ -58,10 +58,21 @@ file(GLOB LIBSRC ${ANTLR2_CPP_DIR}/src/*.cpp)
 add_library(antlr ${LIBSRC})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libantlr.a DESTINATION /usr/local/lib)
 
+# strip macOS for release
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_custom_command(TARGET antlr POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "-- Stripping $<TARGET_FILE:antlr>"
+        COMMAND ${CMAKE_COMMAND} -E echo_append "--   Size before: "
+        COMMAND /usr/bin/stat -f "%z" $<TARGET_FILE:antlr>
+        COMMAND /usr/bin/strip -x $<TARGET_FILE:antlr>
+        COMMAND ${CMAKE_COMMAND} -E echo_append "--   Size after: "
+        COMMAND /usr/bin/stat -f "%z" $<TARGET_FILE:antlr>)
+endif()
+
 # Display macOS Big Sur architectures of libantlr
 if (OS_VERSION GREATER_EQUAL "20")
     add_custom_command(TARGET antlr POST_BUILD
-                       COMMAND ${CMAKE_COMMAND} -E echo_append "-- OSX Architectures libantlr.a: "
-                       COMMAND lipo -archs ${CMAKE_CURRENT_BINARY_DIR}/libantlr.a
+                       COMMAND ${CMAKE_COMMAND} -E echo_append "-- OSX Architectures $<TARGET_FILE:antlr>: "
+                       COMMAND lipo -archs $<TARGET_FILE:antlr>
     )
 endif()
